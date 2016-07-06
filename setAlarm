@@ -1,0 +1,545 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+###################################################################################################
+import sys, json, time, os, math, urllib2
+
+from random import randint
+from threading import Timer
+from sys import stdout
+from time import sleep
+
+###################################################################################################
+class BTCAlarm(object):
+    
+    # =======================================================================
+    def __init__(self, _upd_delay=15):
+
+        # -------------------------------------------------------------------
+        self._API = "https://btc-e.com/api/3/ticker/ltc_usd-ltc_eur?ignore_invalid=1";
+        self._API = "https://btc-e.com/api/3/ticker/ltc_usd?ignore_invalid=1";
+        # -------------------------------------------------------------------
+        print(" Using UpdateDelay of :"+str(_upd_delay));
+        self._UPD_DELAY                         = _upd_delay;
+        self._META_DATA_FILE                    = "./_last_.metadata";
+        self._META_DATA_EXISTS                  = False;
+        self._META_DATA_FILE_ALLWAYS_NEW        = True;
+
+        self._JSON_DATA                         = [];
+
+        self._SYSTEM                            = None;
+        self._SYSTEM_MSGS                       = [];
+        self._SYSTEM_PLAYER                     = " mpg123 ";
+
+
+        # -------------------------------------------------------------------
+        self._ALARMS                            = [];
+        self._ALARMS_CONFIG                     = "./data/config/ALARMS.json";
+
+        self._BUY_LAST                          = 0;
+        self._BUY_MESSAGE                       = None;
+        self._BUY_MSGS                           = [
+                                                    "(b-1) : ",
+                                                    "(b-2) : ",
+                                                    "(b-3) : "
+
+                                                ];
+
+        self._SELL_LAST                         = 0;
+        self._SELL_MESSAGE                      = None;
+        self._SELL_MSGS                         = [
+                                                    "(s-1) : ",
+                                                    "(s-2) : ",
+                                                    "(s-3) : "
+
+                                                ];
+        # -------------------------------------------------------------------
+        self._CORRECTION_VALUE                  = 0; #0.05;
+        # -------------------------------------------------------------------
+        # Sounds
+
+        self._SS_PATH                           = "./data/sound/";
+        self._SS                                = [ 
+                                                    "notification-1.mp3",
+                                                    "notification-2.mp3",
+                                                    "notification-3.mp3",
+                                                    "error.mp3",
+                                                    "beep.mp3",
+                                                ];
+
+        # -------------------------------------------------------------------
+        self.C_R                                = "\033[01;31m";
+        self.C_G                                = "\033[01;32m";
+        self.C_Y                                = "\033[01;33m";
+        self.C_B1                               = "\033[01;34m";
+        self.C_P                                = "\033[01;35m";
+        self.C_B2                               = "\033[01;36m";
+        self.C_W                                = "\033[01;37m";
+
+        self.W_ON_G                             = "\033[01;40m\033[01;37m"
+        self.W_ON_B                             = "\033[01;44m\033[01;37m"
+
+        self._DOWN                              = "\033[01;42m\033[01;37m"
+        self._UP                                = "\033[01;41m\033[01;37m"
+        self._SAME                              = "\033[01;47m\033[01;30m"
+
+        self._BUY_A_COLOR                       = "\033[01;40m\033[01;37m"; # default
+        self._BUY_B_COLOR                       = "\033[01;40m\033[01;37m"; # default
+        self._BUY_C_COLOR                       = "\033[01;40m\033[01;37m"; # default
+        self._BUY_MESSAGE_COLOR                 = "";
+
+        self._SELL_A_COLOR                      = "\033[01;40m\033[01;37m"; # default
+        self._SELL_B_COLOR                      = "\033[01;40m\033[01;37m"; # default
+        self._SELL_C_COLOR                      = "\033[01;40m\033[01;37m"; # default
+        self._SELL_MESSAGE_COLOR                = "";
+
+        self.C_EN                               = "\033[0m";
+
+        self.d_arrow                            = "\342\207\212";
+        self.u_arrow                            = "\342\207\210";
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def _RUN(self):
+
+        # -------------------------------------------------------------------
+        self._UPD_TIMER();
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def _UPD_TIMER(self):
+
+        # -------------------------------------------------------------------
+        # ReRun ALL stuff by time-out
+        self._GET_ALARMS();
+        self._UPDATE_LAST_META_DATA();
+        self._ALARMS_CHECKER();
+
+        # -------------------------------------------------------------------
+        self._TIMER = Timer(self._UPD_DELAY, self._UPD_TIMER);
+        self._TIMER.start();
+
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def _GET_ALARMS(self):
+
+        # -------------------------------------------------------------------
+        try:
+
+            fp = open(self._ALARMS_CONFIG);
+            self._ALARMS = json.load(fp);
+            fp.close();
+
+            #print(self._ALARMS); exit();
+        
+        except Exception as _err_ALARMS_CONFIG:
+            self._SYSTEM_MSGS.append(" _err_ALARMS_CONFIG: "+str(_err_ALARMS_CONFIG));
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def _ALARMS_CHECKER(self):
+
+        # -------------------------------------------------------------------
+        try:
+            # -----------------------------------------------
+            # Parse JSON
+
+            try:
+                if self._META_DATA_EXISTS:
+
+                    self._JSON_DATA = json.loads(self._JSON_DATA);
+                    
+                    #print(self._JSON_DATA["ltc_usd"])
+
+            except Exception as _err_parse:
+                self._SYSTEM_MSGS.append(" _err_parse: "+str(_err_parse));
+
+            # -----------------------------------------------
+            # SELL -> ALARMS
+            try:
+
+                if self._META_DATA_EXISTS:
+
+                    _FOUND_SELL_ALARM = False;
+                    p_x = 2;
+
+                    while p_x != -1:
+
+                        if (self._ALARMS["ltc_usd"]["sell"][p_x] - self._CORRECTION_VALUE) <= float(self._JSON_DATA["ltc_usd"]["sell"]):
+
+                            self._SELL_NOTIFICATION( self._ALARMS["ltc_usd"]["sell"][p_x], self._JSON_DATA["ltc_usd"]["sell"], p_x);
+                            _FOUND_SELL_ALARM = True;
+                            break;
+                        p_x -= 1;
+
+                    if not _FOUND_SELL_ALARM:
+                        self._SELL_NOTIFICATION( self._ALARMS["ltc_usd"]["sell"][2], self._JSON_DATA["ltc_usd"]["sell"], 3);
+
+
+            except Exception as _err_sell:
+                self._SYSTEM_MSGS.append(" _err_sell: "+str(_err_sell));
+
+            # -----------------------------------------------
+            # BUY -> ALARMS
+            try:
+
+                if self._META_DATA_EXISTS:
+    
+                    _FOUND_BUY_ALARM = False;
+                    p_x = 2;
+
+                    while p_x != -1:
+
+                        if (self._ALARMS["ltc_usd"]["buy"][p_x] - self._CORRECTION_VALUE) >= float(self._JSON_DATA["ltc_usd"]["buy"]):
+
+                            self._BUY_NOTIFICATION( self._ALARMS["ltc_usd"]["buy"][p_x], self._JSON_DATA["ltc_usd"]["buy"], p_x);
+                            _FOUND_BUY_ALARM = True;
+                            break;
+
+                        p_x -= 1;
+
+                    if not _FOUND_BUY_ALARM:
+                        self._BUY_NOTIFICATION( self._ALARMS["ltc_usd"]["buy"][2], self._JSON_DATA["ltc_usd"]["buy"], 3);
+
+
+            except Exception as _err_buy:
+                self._SYSTEM_MSGS.append(" _err_buy: "+str(_err_buy));
+                
+            # -----------------------------------------------
+            # Draw info in TERMINAL
+
+            try: 
+
+                # ----------------------------------------------
+                # OUTPUT-SYS-MSGS
+                try:
+                    if len(self._SYSTEM_MSGS) > 0:
+
+                        ERR_TIMER = Timer( 0.05, self._ring, [3, 1] );
+                        ERR_TIMER.start();
+                        
+                        for msg in self._SYSTEM_MSGS:
+                            print(self.C_R+msg+self.C_EN);
+                        
+                        self._line();
+                        # reset 
+                        self._SYSTEM_MSGS = [];
+
+
+                    if not self._META_DATA_EXISTS:
+                        return;
+
+                except Exception as _err_print_err:
+                    print("_err_print_err: "+str(_err_print_err))
+                    self._SYSTEM_MSGS.append(" _err_print_err: "+str(_err_print_err));
+
+                # ----------------------------------------------
+                t = time.gmtime()
+                req_date = " "+str(t.tm_mday)+"-"+str(t.tm_mon)+"-"+str(t.tm_year)+" / "+str(t.tm_hour)+":"+str(t.tm_min)+":"+str(t.tm_sec)+" ";
+                end = self.C_EN;
+                print(" "+self.W_ON_B+"LTC-USD"+end+" > "+self.C_W+req_date+end);
+
+                # ----------------------------------------------
+                # Print out: SELL
+
+                if self._SELL_LAST > self._JSON_DATA["ltc_usd"]["sell"]:
+                    c_sell = self._UP;
+                elif self._SELL_LAST < self._JSON_DATA["ltc_usd"]["sell"]:
+                    c_sell = self._DOWN;
+                else:
+                    c_sell = self._SAME;
+
+
+                _OUTPUT = "\t "+self.C_R+"{0}"+end+" : ["+c_sell+"{1:10}"+end+"] > ALARMS: [ "+self._SELL_A_COLOR+"{2:6}"+end+", "+self._SELL_B_COLOR+"{3:6}"+end+", "+self._SELL_C_COLOR+"{4:6}"+end+" ]";
+
+                stdout.write(_OUTPUT.format(
+ 
+                    "SELL",
+                    " "+str(self._JSON_DATA["ltc_usd"]["sell"]),
+                    str(self._ALARMS["ltc_usd"]["sell"][0]),
+                    str(self._ALARMS["ltc_usd"]["sell"][1]),
+                    str(self._ALARMS["ltc_usd"]["sell"][2])
+
+                ));
+
+                self._SELL_A_COLOR, self._SELL_B_COLOR, self._SELL_C_COLOR = self.W_ON_G, self.W_ON_G, self.W_ON_G;
+
+                if self._SELL_MESSAGE is not None:
+                    print(" "+self._SELL_MESSAGE_COLOR+" "+self._SELL_MESSAGE+" "+self.C_EN);
+                    #stdout.write(" "+self._ALARMS_COLOR+" "+self._SELL_MESSAGE+" "+self.C_EN);
+                    #stdout.flush();
+                    self._SELL_MESSAGE = None
+                else:
+                    print("");
+
+                # ----------------------------------------------
+                # Print out: BUY
+
+                if self._BUY_LAST > self._JSON_DATA["ltc_usd"]["buy"]:
+                    c_buy = self._UP;
+                elif self._BUY_LAST < self._JSON_DATA["ltc_usd"]["buy"]:
+                    c_buy = self._DOWN;
+                else:
+                    c_buy = self._SAME;
+
+
+
+                _OUTPUT = "\t "+self.C_R+"{0}"+end+" : ["+c_buy+"{1:10}"+end+"] < ALARMS: [ "+self._BUY_A_COLOR+"{2:6}"+end+", "+self._BUY_B_COLOR+"{3:6}"+end+", "+self._BUY_C_COLOR+"{4:6}"+end+" ]";
+
+                stdout.write(_OUTPUT.format(
+ 
+                    self.C_G+"BUY "+end,
+                    " "+str(self._JSON_DATA["ltc_usd"]["buy"]),
+                    str(self._ALARMS["ltc_usd"]["buy"][0]),
+                    str(self._ALARMS["ltc_usd"]["buy"][1]),
+                    str(self._ALARMS["ltc_usd"]["buy"][2])
+
+                ));
+
+                self._BUY_A_COLOR, self._BUY_B_COLOR, self._BUY_C_COLOR = self.W_ON_G, self.W_ON_G, self.W_ON_G;
+
+                if self._BUY_MESSAGE is not None:
+                    print(" "+self._BUY_MESSAGE_COLOR+" "+self._BUY_MESSAGE+" "+self.C_EN);
+                    #stdout.write(" "+self._ALARMS_COLOR+" "+self._BUY_MESSAGE+" "+self.C_EN);
+                    #stdout.flush();
+                    self._BUY_MESSAGE = None
+                else:
+                    print("");
+
+                self._line();
+
+                # ----------------------------------------------
+                self._SELL_LAST = self._JSON_DATA["ltc_usd"]["sell"];
+                self._BUY_LAST = self._JSON_DATA["ltc_usd"]["buy"];
+
+                # ----------------------------------------------
+
+            except Exception as _err_draw:
+                self._SYSTEM_MSGS.append(" _err_draw: "+str(_err_draw));
+            # -----------------------------------------------
+
+        except Exception as _err:
+            print("_err: "+str(_err));
+            self._SYSTEM_MSGS.append(" Err: "+str(_err));
+
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def _UPDATE_LAST_META_DATA(self):
+
+        # -------------------------------------------------------------------
+        self._WGET_TO_MEM();
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def _UPDATE_LAST_META_DATA_OLD(self):
+
+        # -------------------------------------------------------------------
+        retry = 3;
+        c = 0;
+        # -------------------------------------------------------------------
+        try:
+
+            if self._META_DATA_FILE_ALLWAYS_NEW:
+
+                start_time = time.time();
+                self._WGET(self._API, self._META_DATA_FILE);
+                
+                if os.path.getsize(self._META_DATA_FILE) > 0:
+                    if start_time <= float(os.path.getmtime(self._META_DATA_FILE)):
+                        
+                        self._META_DATA_EXISTS = True;
+
+                else:
+
+                    self._META_DATA_EXISTS = False;
+                    self._SYSTEM_MSGS.append(" (1) Can't GET new MetaData file: 500 ");
+
+                while os.path.getsize(self._META_DATA_FILE) < 1:
+                    print("os.path.getsize(self._META_DATA_FILE) < 1 == True");
+                    time.sleep(0.2)
+
+            else:
+
+                if not os.path.isfile(self._META_DATA_FILE):
+                    while not os.path.isfile(self._META_DATA_FILE):
+
+                        self._SYSTEM_MSGS.append(" MetaData file is missing: Trying to get new.");
+
+                        start_time = time.time();
+                        self._WGET(self._API, self._META_DATA_FILE);
+        
+                        if start_time <= os.path.getmtime(self._META_DATA_FILE):
+
+                            self._META_DATA_EXISTS = True;
+                            #print(" (2) Got new MetaData file: 200 ");
+                            break;
+
+
+                        c += 1;
+                        if c >= retry:
+                            self._SYSTEM_MSGS.append(" (2) Can't GET new MetaData file: 500 ");
+                            break;
+                else:
+
+                    self._META_DATA_EXISTS = True;
+
+        except Exception as _err_update:
+
+            self._SYSTEM_MSGS.append(" _err_update: "+str(_err_update));
+
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def _SELL_NOTIFICATION(self, alarm_price, _current_price, _ring_type):
+
+        # -------------------------------------------------------------------
+        try:
+
+            # -------------------------------------------------------------------
+            if _ring_type == 0:
+                self._SELL_A_COLOR = "\033[01;42m\033[01;37m";
+                self._SELL_MESSAGE_COLOR = "\033[01;42m\033[01;37m";
+
+            elif _ring_type == 1:
+                self._SELL_B_COLOR = "\033[01;43m\033[01;37m";
+                self._SELL_MESSAGE_COLOR = "\033[01;43m\033[01;37m";
+
+            elif _ring_type == 2:
+                self._SELL_C_COLOR = "\033[01;41m\033[01;37m";
+                self._SELL_MESSAGE_COLOR = "\033[01;41m\033[01;37m";
+            
+            elif _ring_type == 3:
+
+                self._SELL_MESSAGE_COLOR = "\033[01;47m\033[01;30m";
+                self._SELL_MESSAGE = " S:[3] >= [ {0:8} ]".format(str(alarm_price - _current_price));
+                return;
+
+            # -------------------------------------------------------------------
+            self._SELL_MESSAGE = self._SELL_MSGS[_ring_type]+" | Cur. price: "+str(_current_price);
+
+            S_TIMER = Timer(0.05, self._ring, [_ring_type] );
+            S_TIMER.start();
+            # -------------------------------------------------------------------
+
+        except Exception as _err_sell_not:
+            self._SYSTEM_MSGS.append(" _err_sell_not: "+str(_err_sell_not));
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def _BUY_NOTIFICATION(self, alarm_price, _current_price, _ring_type):
+        
+        # -------------------------------------------------------------------
+        try:
+
+            # -------------------------------------------------------------------
+            if _ring_type == 0:
+                self._BUY_A_COLOR = "\033[01;42m\033[01;37m";
+                self._BUY_MESSAGE_COLOR = "\033[01;42m\033[01;37m";
+
+            elif _ring_type == 1:
+                self._BUY_B_COLOR = "\033[01;43m\033[01;37m";
+                self._BUY_MESSAGE_COLOR = "\033[01;43m\033[01;37m";
+
+            elif _ring_type == 2:
+                self._BUY_C_COLOR = "\033[01;41m\033[01;37m";
+                self._BUY_MESSAGE_COLOR = "\033[01;41m\033[01;37m";
+
+            elif _ring_type == 3:
+
+
+                self._BUY_MESSAGE_COLOR = "\033[01;47m\033[01;30m";
+                self._BUY_MESSAGE = " B:[3] <= [ {0:8} ]".format(str(_current_price - alarm_price));
+                return;
+
+            # -------------------------------------------------------------------
+            self._BUY_MESSAGE = self._BUY_MSGS[_ring_type]+" | Cur. price: "+str(_current_price);
+
+            B_TIMER = Timer(0.05, self._ring, [_ring_type] );
+            B_TIMER.start();
+            # -------------------------------------------------------------------
+
+        except Exception as _err_buy_not:
+            self._SYSTEM_MSGS.append(" _err_buy_not: "+str(_err_buy_not));
+
+        # -------------------------------------------------------------------
+
+
+    # =======================================================================
+    def _ring(self, _ring_type, _times=1, _PARAMS=" -q "):
+
+        # -------------------------------------------------------------------
+        for x in xrange(0, _times):
+            os.system(self._SYSTEM_PLAYER+_PARAMS+self._SS_PATH+self._SS[_ring_type]+" ");
+            time.sleep(0.75)
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def _WGET_TO_MEM(self):
+
+        # -------------------------------------------------------------------
+        try:
+
+            response = urllib2.urlopen(urllib2.Request(self._API)).read();
+            self._JSON_DATA = response;
+            self._META_DATA_EXISTS = True;
+            """
+            print("--------------------------------------------------------");
+            print(self._JSON_DATA);
+            print("--------------------------------------------------------");
+            """
+
+        except Exception as _err_wget_to_mem:
+
+            #print(_err_wget_to_mem)
+            self._META_DATA_EXISTS = False;
+            self._SYSTEM_MSGS.append(" _err_wget_to_mem: "+str(_err_wget_to_mem));
+
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def _WGET(self, _URL, _OUTPUT_FILE, _PARAMS=" --quiet --timeout=5 --connect-timeout=5 --quota=1 "):
+
+        # -------------------------------------------------------------------
+        _PARAMS=" --connect-timeout=3 --quota=1 ";
+        # -------------------------------------------------------------------
+        try:
+
+            os.system("wget "+_PARAMS+_URL+" -O "+_OUTPUT_FILE);
+    
+        except Exception as _err_wget:
+
+            self._SYSTEM_MSGS.append(" _err_wget: "+str(_err_wget));
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def _line(self):
+
+        # -------------------------------------------------------------------
+        print("-"*65);
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+
+
+###################################################################################################
+
+if __name__ == "__main__":
+
+    print(" Initialization ...");
+    if len(sys.argv) > 1:
+        _BTCAlarm = BTCAlarm(_upd_delay=float(sys.argv[1]));
+    else:
+        _BTCAlarm = BTCAlarm(_upd_delay=15);
+
+
+    _BTCAlarm._GET_ALARMS();
+    print(" Done.");
+
+    # ------------------------------------------------------------------
+    #del sys.argv[0];
+    #args = sys.argv;
+    _BTCAlarm._RUN();
+
+    # ------------------------------------------------------------------
+

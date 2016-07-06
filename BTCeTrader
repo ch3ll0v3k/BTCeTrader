@@ -1,0 +1,733 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+###################################################################################################
+# Built IN
+import sys, json, time, os, math, datetime
+import httplib, urllib, urllib2, hashlib, hmac
+from random import randint
+from threading import Timer
+from sys import stdout
+from time import sleep
+
+# PyQt
+from PyQt4.QtCore import Qt, QThread, QTimer
+from PyQt4.QtGui import QApplication, QPixmap, QSplashScreen, QFont
+
+# PyQt >> TRADE_MANAGER
+from PyQt4.QtCore import SIGNAL, SLOT, QObject
+
+# BTCeTrader modules
+from moduls.BTCeGUI import GUI, Splash
+from moduls.BTCeRequest import Request
+from moduls.BTCeStyle import Colors as CC
+from moduls.BTCeSQLite3 import DB
+"""
+
+##############################################################################
+#                                                                            #
+#                                   INFO!                                    #
+#                        __________________________                          #
+#                                                                            #
+#          Данный проект не имеет ничего общего в командой BTC-e.com         #
+#                                                                            #
+#   THE BTC-e.com IS NOT AFFILIATED WITH THIS PROJECT. THIS IS A COMPLETELY  #
+#    INDEPENDENT IMPLEMENTATION BASED ON THE ONLINE BTC-E API DESCRIPTION:   #
+#                                                                            #
+#                                                                            #
+##############################################################################
+#                                                                            #
+#    Feel free to Support - Donate:                                          #
+#                                                                            #
+#             LTC     : "LUSz57MJkz6DwygfvLAYXUfC8WUZeYB52k"                 #
+#             BTC     : "19eNNxZW2osDoE4rjYEWKh8oJHkZByte9T"                 #
+#             DOGE   : "DHmhxnW2Wxg58R8rXSFoAwsSffW3BDnbHc"                  #
+#             PEER    : "PWyaHp2gm1HduZkNLwm6ZMh8XLAwds455V"                 #
+#             DASH   : "Xc5jiQt7rgfsoN4rJVCCJuC7rxvWL7s3Mw"                  #
+#             BLACK  : "BHjQW5VdTA8CBmSSq5jzi2YYMJVaYys3hE"                  #
+#                                                                            #
+##############################################################################
+
+"""
+###################################################################################################
+class BTCeTrader(object):
+    
+    # =======================================================================
+    def __init__(self, _CONF_FILE="data/config/BTCeTrader.json"):
+
+        # -------------------------------------------------------------------
+        self.AVAILABLE                          = True;
+        self.CONF                               = None;
+        self.CONF_FILE                          = _CONF_FILE;
+        self.CONF_VALID                         = False;
+
+        self.LOG                                = { "error":[], "info":[], "success":[], "notif":[], "status-bar":[] };
+        self.IS_FIRST_UPDATE                    = True;
+        self.GET_NEW_DATA_NOW                   = False;
+        # -------------------------------------------------------------------
+        if self.UPDATE_CONF():
+
+            _msg = " [MODULE:CONFIG] loaded!";
+            self.LOG["info"].append(_msg);
+            self.INIT();
+
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def INIT(self):
+
+        # -------------------------------------------------------------------
+        self.TIME                               = None;
+        self.MAIN_TIMER                         = QTimer;
+        self.ALLOW_UPD                          = True;
+
+        # -------------------------------------------------------------------
+        self.CURR_PAIR                          = self.CONF["API"]["PAIRS"][0];
+
+        self.LAST_JSON_META_DATA                = {};
+        self.JSON_META_DATA                     = {};
+        self.FEE                                = 0.2; # CORRECT ?? -> 0.221 [TODO]
+
+        # -------------------------------------------------------------------
+        # GRAPH - MetaData PLOTTER
+
+        self.JSON_GRAPH_LIMIT                   = None;
+
+        # -------------------------------------------------------------------
+        self.USER_BALANCE                       = {};
+        # -------------------------------------------------------------------
+        # TRADER_MANAGER 
+
+        self.TRADE_MANAGER_TIME                 = QTimer();
+        self.TRADE_MANAGER_UPD_DELAY            = 1000; # MilliSecs
+
+        self.TRADE_MANAGER_ACTION_REQUIRED      = False;
+        self.TRADE_MANAGER_ACTION_FINISHED      = True;
+        self.TRADE_MANAGER_DATA                 = { 
+                                                    "BUY" : {
+                                                        "CURR_TYPE" : [], 
+                                                        "AMOUNT"    : [], 
+                                                        "AT_PRICE"  : [] 
+                                                    },
+                                                    "SELL" : {
+                                                        "CURR_TYPE" : [], 
+                                                        "AMOUNT"    : [], 
+                                                        "AT_PRICE"  : [] 
+                                                    }
+                                                };
+
+        """
+        self.TRADE_MANAGER_DATA["BUY"]["CURR_TYPE"].append("ltc_usd");
+        self.TRADE_MANAGER_DATA["BUY"]["AMOUNT"].append(1.234);
+        self.TRADE_MANAGER_DATA["BUY"]["AT_PRICE"].append(3.45633);
+        """
+        # -------------------------------------------------------------------
+        # BTCeSQLite3
+
+        self.DB = DB(self.CONF, self);
+
+        if self.DB.AVAILABLE:
+            _msg = " [MODULE:SQLITE3] loaded!";
+            self.LOG["info"].append(_msg);
+        else:
+            exit(" [MODULE:SQLITE3] Error !");
+
+        # -------------------------------------------------------------------
+        # BTCeRequest
+        self.Request = Request(self.CONF, self);
+        
+        if self.Request.AVAILABLE:
+
+            _msg = " [MODULE:REQUEST] loaded!";
+            self.LOG["info"].append(_msg);
+
+        else:
+
+            exit(" [MODULE:REQUEST] Error !");
+
+        # -------------------------------------------------------------------
+        # BTCeGUI
+        self.GUI = GUI(self.CONF, self.Request, parent=self);
+
+        if self.GUI.AVAILABLE:
+
+            _msg = " [MODULE:GUI] loaded!";
+            self.LOG["info"].append(_msg);
+
+            self.JSON_GRAPH_LIMIT = self.GUI.FRAME_GRAPH.CANDLES_MAX_NUM * self.GUI.FRAME_GRAPH.TICKS_FOR_ONE_CANDLE;
+            self.LOG["info"].append("JSON_GRAPH_LIMIT: "+str(self.JSON_GRAPH_LIMIT));
+            self.AVAILABLE = True;
+
+        else:
+
+            self.AVAILABLE = False;
+            exit(" [MODULE:GUI] Error !");
+
+        # -------------------------------------------------------------------
+        if self.AVAILABLE:
+
+            _msg = " BTCeTrader: Inited !"
+            self.LOG["info"].append(_msg);
+
+            # UPDATERS
+            QObject.connect(self.TRADE_MANAGER_TIME, SIGNAL("timeout()"), self.TRADE_MANAGER);
+            self.TRADE_MANAGER_TIME.start(self.TRADE_MANAGER_UPD_DELAY);
+
+            DELAYED_LAUNCH_TIMER = QTimer();
+            DELAYED_LAUNCH_TIMER.singleShot( 1000, self.BTCeUPDATER );
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def UPDATE_METADATA(self):
+
+        # ------------------------------------------------
+        try:
+
+            pairs_joined = "";
+
+            for pair in self.CONF["API"]["PAIRS"]:
+                pairs_joined += pair+"-";
+
+            if self.CONF["API"]["USE_HEADERS"]:
+
+                _req_uri = self.CONF["API"]["URL"]["PUB"].replace("|<>PAIRS<>|", pairs_joined);
+                req = urllib2.Request(_req_uri, headers=self.CONF["API"]["URL"]["HEADER"]);
+                RAW_META_DATA = urllib2.urlopen(req).read();
+
+                _req_uri = self.CONF["API"]["URL"]["ASK-BID"].replace("|<>PAIRS<>|", self.CURR_PAIR);
+                req = urllib2.Request(_req_uri, headers=self.CONF["API"]["URL"]["HEADER"]);
+                RAW_ASK_BID = urllib2.urlopen(req).read();
+
+                self.GUI.FRAME_GRAPH.MARKT_VOLUME_JSON = json.loads( RAW_ASK_BID );
+
+
+            else:
+
+                _req_uri = self.CONF["API"]["URL"]["PUB"].replace("|<>PAIRS<>|", pairs_joined);
+                RAW_META_DATA = urllib2.urlopen(urllib2.Request( _req_uri )).read();
+
+                _req_uri = self.CONF["API"]["URL"]["ASK-BID"].replace("|<>PAIRS<>|", self.CURR_PAIR);
+                RAW_ASK_BID = urllib2.urlopen(urllib2.Request( _req_uri.replace("|<>LIMIT<>|", str(self.GUI.MARKET_VOLUME_LIMIT)) )).read();
+
+                self.GUI.FRAME_GRAPH.MARKT_VOLUME_JSON = json.loads( RAW_ASK_BID );
+
+            # ------------------------------------------------
+            try:
+
+                t = time.gmtime()
+                self.TIME = str(t.tm_mday)+"-"+str(t.tm_mon)+"-"+str(t.tm_year)+" / "+str(t.tm_hour)+":"+str(t.tm_min)+":"+str(t.tm_sec);
+
+                # JSON
+                self.LAST_JSON_META_DATA    = self.JSON_META_DATA;
+                self.JSON_META_DATA         = json.loads(RAW_META_DATA);
+                self.RAW_ASK_BID_META_DATA  = self.GUI.FRAME_GRAPH.MARKT_VOLUME_JSON;
+
+
+                if self.CURR_PAIR in self.JSON_META_DATA:
+
+                    if self.IS_FIRST_UPDATE: # By Changing Exchange Pair IMPORTANT !!!
+                        self.IS_FIRST_UPDATE = False;
+                        #time.sleep(2); # SERVER Refresh each 2 mec, so sleep :D
+                        self.UPDATE_METADATA();
+
+                    else:
+
+                        # -----------------------------------------------------------
+                        self.GUI.ALLOW_UPD_METADATA = True;
+
+                        # INSERT RAW JSNON IN DB
+                        JSD = self.JSON_META_DATA;
+
+                        for PR in self.JSON_META_DATA:
+
+                            # All what we need is { "updated" : val, "buy" : val, "sell" : val }
+
+                            # Striping out all onneedet data, save some time and CPU speed
+                            NEW_JSON = '{ "updated" : '+str(JSD[PR]["updated"])+', "buy" : '+str(JSD[PR]["buy"])+', "sell" : '+str(JSD[PR]["sell"])+' }';
+
+                            #DUMPED_JSON = json.dumps(JSD[PR], separators=(',',':'));
+
+                            _SQL = 'INSERT INTO '+PR+' (updated, json) VALUES ('+str(JSD[PR]["updated"])+",'"+NEW_JSON+"')";
+                            if not self.DB.EXEC("META_DB", _SQL):
+                                self.LOG["error"].append(" JSON_ERR[0:1]:[META_DB: '"+PR+"'] Updating error! ");
+
+                            #print("---------------------")
+                            #print(datetime.datetime.fromtimestamp( int(JSD[PR]["updated"]) ).strftime('%H:%M:%S') )
+                            #print(time.strftime("%H:%M:%S", time.localtime(int(JSD[PR]["updated"]))));
+                            #print(datetime.datetime.utcfromtimestamp( int(JSD[PR]["updated"]) ).strftime('%H:%M:%S'));
+
+                        _SQL = "SELECT json from "+self.CURR_PAIR+" order by updated ASC";
+
+                        self.GUI.FRAME_GRAPH.RAW_JSON_DATA = self.DB.FETCH("META_DB",_SQL, ALL=True);
+
+                        # -----------------------------------------------------------
+                    
+                    return True;
+
+                else:
+                    raise Exception(" JSON_ERR[0:0]: "+str(self.JSON_META_DATA["error"]));
+
+            except Exception as _exception:
+
+                self.LOG["error"].append(_exception);
+                self.EXC_HANDLER(_exception);
+                return False;
+            # ------------------------------------------------
+
+        except Exception as _exception:
+
+            # TODO:
+
+            _msg = " Internet connection error[0:0]: "+str(_exception);
+            #if self.CONF["SYS"]["ALLOW_SOUND"]: self.GUI.Sound.RING( _type=4 );
+            self.LOG["error"].append(_msg);
+            self.EXC_HANDLER(_msg);
+            return False;
+
+        # ------------------------------------------------
+        return True; # If all steps before are OKE
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def UPDATE_CONF(self):
+        
+        # -------------------------------------------------------------------
+        try:
+            
+            if os.path.isfile(self.CONF_FILE):
+            
+                # -------------------------------------------------
+                # Read en Parxe JSON config 
+                try:
+                    FS = open(self.CONF_FILE, "r");
+                    self.CONF = json.load(FS);
+                    FS.close();
+                                
+                except Exception as _exception:
+
+                    FS.close();
+                    _msg = " UPDATE_CONF[0:0]: Bad json "+str(_exception);
+                    self.LOG["error"].append(_msg);
+                    self.EXC_HANDLER(_msg);
+
+                # -------------------------------------------------
+                # Parse JSON
+                try:
+
+                    if self.CONF["CHECK_CODE"][0] == "VXSD3456":
+                        self.CONF_VALID = True;
+                        return True;
+                
+                except Exception as _exception:
+        
+                    _msg = " UPDATE_CONF[0:1]: Bad json: "+str(_exception);
+                    self.CONF_VALID = False;
+                    self.LOG["error"].append(_msg);
+                    self.EXC_HANDLER(_msg);
+                
+                # -------------------------------------------------
+
+            else:
+                self.CONF_VALID = False;
+                raise Exception(" No config file available! Exit now!" );
+
+
+        except Exception as _exception:
+
+            _msg = " UPDATE_CONF[0:2]: "+str(_exception);
+            self.LOG["error"].append(_msg);
+            self.CONF_VALID = False;
+            self.EXC_HANDLER(_msg);
+            return False;
+
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def UPDATE_MANUAL(self):
+
+        # -------------------------------------------------------------------
+        self.MAIN_TIMER = 0;
+        # -------------------------------------------------------------------
+
+
+
+        # -------------------------------------------------------------------
+        self.BTCeUPDATER();
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def BTCeUPDATER(self):
+
+        # -------------------------------------------------------------------
+        if self.UPDATE_CONF():
+
+            self.MAIN_TIMER.singleShot(self.CONF["SYS"]["UPD_DELAY"], self.BTCeUPDATER);
+
+            # ------------------------------------------------------
+            self.GUI.UPD_WATCH_COUNTER = self.CONF["SYS"]["UPD_DELAY"];
+            # ------------------------------------------------------
+            if self.CONF["SYS"]["ALLOW_UPD"]:
+
+                # --------------------------------------------------
+                if self.UPDATE_METADATA():
+                    
+                    pass;
+                    #self.LOG["status-bar"].append(' Updated @ '+self.TIME);
+                    #self.LOG["info"].append(' Updated @ '+self.TIME);
+                
+                else:
+                    self.LOG["error"].append(" Can't Update Meta-Data !");
+
+            else:
+                self.LOG["info"].append(' Auto-Update is disabled! ');
+            # ------------------------------------------------------
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def TRADE_MANAGER(self):
+
+        # -------------------------------------------------------------------
+        try:
+            
+            # ---------------------------------------------------------------
+            # NEEDET BY changing TRADE Pairs (Faster Response time)
+            if self.GET_NEW_DATA_NOW: 
+
+                DELAYED_LAUNCH_TIMER = QTimer();
+                DELAYED_LAUNCH_TIMER.singleShot( 2000, self.BTCeUPDATER );
+
+            # ---------------------------------------------------------------
+            if self.TRADE_MANAGER_ACTION_REQUIRED:
+
+                # ACCURE TRADE LOCK
+                self.TRADE_MANAGER_ACTION_FINISHED = False;
+
+                # -----------------------------------------------------------
+                TIME = int(str(time.time()).split(".")[0]);
+                #print("|",TIME,"|");
+                # -----------------------------------------------------------
+                # BUY -> ACTIONS
+                try:
+
+                    # -------------------------------------------------------
+                    for _i_ in xrange(0, len(self.TRADE_MANAGER_DATA["BUY"]["CURR_TYPE"])):
+
+                        _pair = self.TRADE_MANAGER_DATA["BUY"]["CURR_TYPE"][_i_]; # ltc_usd
+                        _at_price = self.TRADE_MANAGER_DATA["BUY"]["AT_PRICE"][_i_];
+                        _amount = self.TRADE_MANAGER_DATA["BUY"]["AMOUNT"][_i_];
+
+                        _type = "buy";
+
+                        _req = [
+                            "pair",     _pair,
+                            "type",     _type,
+                            "rate",     _at_price,
+                            "amount",   _amount
+                        ];
+
+                        JSON = self.Request.Trade(_req);
+
+                        if JSON["success"] == 1:
+
+                            JS = JSON["return"];
+
+                            # --------------------------------------------------
+                            self.LOG["success"].append(
+                                "New ORDER: #"+str(JS["order_id"])+"<br/>"+_type+" "+str(_amount)+" "+_pair+" @ "+str(_at_price)
+                            );
+                            
+                            # --------------------------------------------------
+                            if JS["remains"] == 0 or JS["order_id"] == 0:
+                                _filled = 1;
+                                JS["order_id"] = "101"
+                            else:
+                                _filled = 0;
+
+                            # --------------------------------------------------
+                            # HISTORY_DB
+                            
+                            _SQL = "INSERT INTO "+_pair+" (id, order_id, unix_time, action, filled, amount, at_price, fee, ttl, grand_ttl)"
+                            T = " VALUES (NULL, {0}, {1}, '{2}', {3}, {4}, {5}, {6}, {7}, {8})"
+
+                            # For USD
+                            ttl = _amount*_at_price;
+                            fee = (ttl/100*self.FEE);
+
+                            _SQL += T.format( JS["order_id"], TIME, "bought", _filled, _amount, _at_price, fee, ttl, ttl-fee );
+                            self.DB.EXEC("HISTORY_DB", _SQL);
+
+                            self.GUI.FRAME_HISTORY.CREATE_LISTS();
+                            
+                            # --------------------------------------------------
+                            # ORDERS_DB
+
+                            _SQL = "INSERT INTO "+_pair+" (id, order_id, unix_time, filled, at_price, amount, pair, type) ";
+                            T = " VALUES (NULL, {0}, {1}, {2}, {3}, {4}, '{5}', '{6}' )"
+                            _SQL += T.format( JS["order_id"], TIME, _filled, _at_price, _amount, _pair, _type );
+
+                            self.DB.EXEC("ORDERS_DB", _SQL);
+                            self.GUI.FRAME_ORDERS.GET_ORDERS_FROM_DB();
+                            self.GUI.FRAME_ORDERS.CREATE_LISTS();
+                            
+                            # --------------------------------------------------
+                            # BOOKKIPING_DB
+                            
+                            BKKPG_UID = str(self.GUI.BKKPG_UID_VALUE.text()).strip();
+
+                            self.GUI.FRAME_BOOKKEEPING.BKKPG_UID_ACTION( _type, BKKPG_UID, [ JS["order_id"], TIME, _filled, _amount, _at_price ] );
+                            self.GUI.FRAME_BOOKKEEPING.CREATE_LISTS();
+                            
+                            self.GUI.CONTROL_TRADINGS_BTNS("sell", "show");
+                            self.GUI.BKKPG_UID_VALUE.setText(""); 
+                            
+                            # --------------------------------------------------
+
+                        else:
+                            self.LOG["error"].append( "New ['"+_type+"'] Order ID: ERROR: "+ JSON["error"] );
+
+                    # /for
+                    # -------------------------------------------------------
+                    # Empty TRADE_MANAGER_DATA
+                    self.TRADE_MANAGER_DATA["BUY"]["CURR_TYPE"]  = [];
+                    self.TRADE_MANAGER_DATA["BUY"]["AMOUNT"]     = [];
+                    self.TRADE_MANAGER_DATA["BUY"]["AT_PRICE"]   = [];
+
+                except Exception as _exception:
+
+                    _msg = " TRADE_MANAGER_ERROR[0:1]: "+str(_exception);
+                    print(_msg);
+                    #self.LOG["error"].append(_msg);
+                    if self.CONF["SYS"]["ALLOW_SOUND"]: self.GUI.Sound.RING( _type=4 );
+
+                # ---------------------------------------------------------------
+                # SELL BUY -> ACTIONS
+                try:
+
+                    # -------------------------------------------------------    
+                    for _i_ in xrange(0, len(self.TRADE_MANAGER_DATA["SELL"]["CURR_TYPE"])):
+
+                        _pair = self.TRADE_MANAGER_DATA["SELL"]["CURR_TYPE"][_i_];
+                        _amount = self.TRADE_MANAGER_DATA["SELL"]["AMOUNT"][_i_];
+                        _at_price = self.TRADE_MANAGER_DATA["SELL"]["AT_PRICE"][_i_];
+
+                        _type = "sell";
+
+                        _req = [
+                            "pair",     _pair,
+                            "type",     _type,
+                            "rate",     _at_price,
+                            "amount",   _amount
+                        ];
+
+                        JSON = self.Request.Trade(_req);
+
+                        if JSON["success"] == 1:
+
+                            JS = JSON["return"];
+
+                            # --------------------------------------------------
+                            self.LOG["success"].append(
+                                "New ORDER: #"+str(JS["order_id"])+"<br/>"+_type+" "+str(_amount)+" "+_pair+" @ "+str(_at_price)
+                            );
+                            
+                            # --------------------------------------------------
+                            if JS["remains"] == 0 or JS["order_id"] == 0:
+
+                                _filled = 1;
+                                JS["order_id"] = "101"
+                            else:
+
+                                _filled = 0;
+
+                            # --------------------------------------------------
+                            # HISTORY_DB
+
+                            _SQL = "INSERT INTO "+_pair+" (id, order_id, unix_time, action, filled, amount, at_price, fee, ttl, grand_ttl)"
+                            T = " VALUES (NULL, {0}, {1}, '{2}', {3}, {4}, {5}, {6}, {7}, {8})"
+
+                            ttl = _amount*_at_price;
+                            fee = (ttl/100*self.FEE);
+
+                            _SQL += T.format( JS["order_id"], time.time(), "sold", _filled, _amount, _at_price, fee, ttl, ttl-fee );
+                            self.DB.EXEC("HISTORY_DB", _SQL);
+
+                            self.GUI.FRAME_HISTORY.CREATE_LISTS();
+                            # --------------------------------------------------
+                            # ORDERS_DB
+
+                            _SQL = "INSERT INTO "+_pair+" (id, order_id, unix_time, filled, at_price, amount, pair, type) ";
+                            T = " VALUES (NULL, {0}, {1}, {2}, {3}, {4}, '{5}', '{6}' )"
+                            _SQL += T.format( JS["order_id"], TIME, _filled, _at_price, _amount, _pair, _type );
+
+
+                            self.DB.EXEC("ORDERS_DB", _SQL);
+                            self.GUI.FRAME_ORDERS.CREATE_LISTS();
+
+                            # --------------------------------------------------
+                            # BOOKKIPING_DB
+
+                            BKKPG_UID = str(self.GUI.BKKPG_UID_VALUE.text()).strip();
+
+                            self.GUI.FRAME_BOOKKEEPING.BKKPG_UID_ACTION( _type, BKKPG_UID, [ JS["order_id"], TIME, _filled, _amount, _at_price ] );
+                            self.GUI.FRAME_BOOKKEEPING.CREATE_LISTS();
+
+                            self.GUI.CONTROL_TRADINGS_BTNS("buy", "show");
+                            self.GUI.BKKPG_UID_VALUE.setText(""); 
+                            # --------------------------------------------------
+
+
+                        else:
+                            self.LOG["error"].append( "New ['"+_type+"'] Order ID: ERROR: "+ JSON["error"] );
+
+                    # /for
+                    # -------------------------------------------------------    
+                    # Empty TRADE_MANAGER_DATA
+                    self.TRADE_MANAGER_DATA["SELL"]["CURR_TYPE"] = [];
+                    self.TRADE_MANAGER_DATA["SELL"]["AMOUNT"]    = [];
+                    self.TRADE_MANAGER_DATA["SELL"]["AT_PRICE"]  = [];
+
+                except Exception as _exception:
+                    
+                    _msg = " TRADE_MANAGER_ERROR[0:2]: "+str(_exception);
+                    print(_msg);
+
+                # ---------------------------------------------------------------
+                # Allow GUI to get latest balance/data from user account
+                self.GUI.TRADE_TERMINAL_HAS_ACTION = True; 
+                
+                # RELEAS TRADE LOCK
+                self.TRADE_MANAGER_ACTION_REQUIRED = False;
+                self.TRADE_MANAGER_ACTION_FINISHED = True;
+
+                # ---------------------------------------------------------------
+
+        except Exception as _exception:
+
+            print(_exception);
+            self.LOG["error"].append(" TRADE_MANAGER_ERROR[0:3]: FATAL ERROR!\n"+str(_exception)+"\n Exit in 5 sec. ");
+            sleep(1);
+            self.EXC_HANDLER(_exception);
+            self.SAVE_DATA();
+            exit();
+
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def CHANGE_ALLOW_UPD(self):
+
+        # -------------------------------------------------------------------
+        self.CONG["SYS"]["ALLOW_UPD"] = not self.CONG["SYS"]["ALLOW_UPD"];
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def SAVE_DATA(self):
+        
+        # -------------------------------------------------------------------
+        try:
+
+            # Save data
+            _msg = " Saving data and exit ! ";
+            self.LOG["info"].append(_msg);
+
+            if self.Request.SAVE_NONCE():
+                #print(" Nonce saved");
+                return True;
+
+        except Exception as _exception:
+
+            self.EXC_HANDLER(_exception);
+            return False;
+
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    # =======================================================================
+    # =======================================================================
+    # self.API_* Methods
+
+    def API_TEST(self):
+
+        # ------------------------------------------------------------------
+        pass;
+        # ------------------------------------------------------------------
+
+    # =======================================================================
+
+
+
+
+
+    # =======================================================================
+    # =======================================================================
+    # =======================================================================
+    # EXCEPTIONS HANDLERS
+    def EXC_HANDLER(self, _exception):
+
+        # -------------------------------------------------------------------
+        if self.CONF_VALID:
+            self._EXC_(_exception);
+
+        else: # Print Exception and EXIT
+            self._EXC_(_exception, _exit=True);
+
+        # -------------------------------------------------------------------
+
+    # =======================================================================
+    def _EXC_(self, _exception, _exit=False):
+
+        # -------------------------------------------------------------------
+        try:
+            exc_type, exc_obj, tb = sys.exc_info()
+            f = tb.tb_frame            
+            
+            _DEBUG_MSG = " DEBUG: ['"+str(_exception)+"'] > ['"+f.f_code.co_filename+"' : '"+str(tb.tb_lineno)+"']";
+
+            print(_DEBUG_MSG);
+            #self.LOG["error"].append(_DEBUG_MSG);
+
+            if _exit:
+                exit(" _EXC_( [], _exit=True)");
+
+        except Exception as _FATAAL_ERROR_:
+            
+            exc_type, exc_obj, tb = sys.exc_info()
+            f = tb.tb_frame
+            self.LOG["error"].append(" FATAAL-ERROR: "+str(_FATAAL_ERROR_));
+            print(CC.R+" Err: "+CC.EN+"['"+CC.W+str(_exception)+CC.EN+"'] > ['"+CC.G+f.f_code.co_filename+CC.EN+"' : '"+CC.B+str(tb.tb_lineno)+CC.EN+"']");
+            print(CC.R+" EXIT NOW! DATA MAY BE LOST !!!"+CC.EN)
+
+            exit(99);
+
+        # -------------------------------------------------------------------
+    
+    # END
+    # =======================================================================
+
+
+###################################################################################################
+if __name__ == '__main__':
+
+    # ------------------------------------------------------------------------    
+    App = QApplication(sys.argv);
+    #args = sys.argv.remove(__file__);
+    _BTCeTrader = BTCeTrader();
+
+    # ------------------------------------------------------------------------    
+    if _BTCeTrader.CONF["SYS"]["GUI"]["SHOW"]:
+        if _BTCeTrader.GUI.AVAILABLE:
+            _BTCeTrader.GUI.show();
+
+    else:
+
+        print(" "+("-"*70))
+        print('["SYS"]["GUI"]["SHOW"]: '+str(_BTCeTrader.CONF["SYS"]["GUI"]["SHOW"]));
+        time.sleep(1);
+        print(" Exit now")
+        exit();
+        sys.exit(App.exec_());
+        
+
+    sys.exit(App.exec_());
+
+    # ------------------------------------------------------------------------    
+
+

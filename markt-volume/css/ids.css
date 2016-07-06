@@ -1,0 +1,34 @@
+/* ====================================================================== */
+/* ====================================================================== */
+body{
+
+}
+#wrapper-box{
+
+    float: left; display: block; width: 800px; height: 500px; box-shadow: 0 0 5px #000;
+}
+
+/* ====================================================================== */
+#grid-box{
+    position: absolute; float: left; display: block; width: 800px; height: 500px; box-shadow: 0 0 5px #0F0;
+}
+
+.grid-box-cell{
+
+    float: left; display: block; width: 49px; height: 49px; background-color: #333;
+    border-bottom: solid 1px #555; border-right: solid 1px #555;
+
+}
+/* ====================================================================== */
+#volume-box{
+    position: absolute; float: left; display: block; width: 800px; height: 500px; box-shadow: 0 0 5px #0F0;    
+}
+.volume-cell{
+
+    transition: all 0.5s;
+    position: absolute; display: block; width: 0px; height: 8px; background-color: #0FF;
+    border: solid 1px #fff; border-left: none; margin: 0;
+
+}
+/* ====================================================================== */
+/* ====================================================================== */

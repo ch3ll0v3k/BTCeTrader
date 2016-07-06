@@ -1,0 +1,32 @@
+self.FRAME_GRAPH.TAKE_SCREENSHOT();
+
+self.FRAME_GRAPH.Y_ZOOM[ "ltc_usd" ]["deff"]=250; self.update();
+self.FRAME_GRAPH.Y_ZOOM[ "btc_usd" ]["step"]
+
+self.FRAME_GRAPH.DRAW_GRID = True; self.update();
+
+self.FRAME_GRAPH.GRID_LINE_SIZE = 1; self.update();
+self.FRAME_GRAPH.DRAW_PICK_LINES = True; self.update();
+
+self.DRAW_MIN_MAX_VALUE = True; self.update();
+self.PARENT.LOG["info"].append("text");
+
+self.MARKET_VOLUME_LIMIT = 120;
+
+self.FRAME_GRAPH.Y_ZOOM["btc_usd"]["markt_volume_mul"]
+self.FRAME_GRAPH.JSON_GRAPH_LIMIT = (33*120);
+
+self.FRAME_GRAPH.JSON_GRAPH_LIMIT = (48*120);
+self.FRAME_GRAPH.JSON_GRAPH_LIMIT = (47*120);
+
+
+self.FRAME_GRAPH.Y_CENTER_OFFSET = 215;
+
+self.FRAME_GRAPH.CURRENT_Y_OFFSET = 3030;
+
+self.BKKPG_UID_VALUE.setText("1");
+
+
+self.FRAME_GRAPH.GRAPH_DOWN_SHIFTER_BTN.setEnabled( True ); self.FRAME_GRAPH.GRAPH_UP_SHIFTER_BTN.setEnabled( True );
+
+

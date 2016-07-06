@@ -1,0 +1,91 @@
+{
+    "API" : {
+
+        "IP"        : "141.101.121.193",
+        "HOST"      : "btc-e.com",
+
+        "KEY" : {
+            "PUB"   : "6YWFFT6Y609B-HCY609B-HCIILUI-K15MN-A9H1AZE-1UHCT1LM",
+            "SEC"   : "ae6b19c979406832ebe65980adb664fa92980adb664fa9231b9808533166dd2"
+        },
+
+        "URL" : {
+            "PUB"       : "https://btc-e.com/api/3/ticker/|<>PAIRS<>|?ignore_invalid=1",
+            "ASK-BID"   : "https://btc-e.com/api/3/depth/|<>PAIRS<>|?limit=|<>LIMIT<>|",
+            "TRADES"    : "https://btc-e.com/api/3/trades/|<>PAIRS<>|?limit=5",
+            "FEE"       : "https://btc-e.com/api/2/|<>PAIRS<>|/fee",
+            "TAPI"      : "/tapi",
+            "INFO"      : "https://btc-e.com/api/3/info",
+            "HEADER"    : {
+                "User-Agent"        : "Mozilla/5.0 (Win-32; rv:24.0) Gecko/20140723 Firefox/24.0 Iceweasel/24.7.0",
+                "Accept"            : "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language"   : "en-US,en;q=0.5",
+                "Referer"           : "http://from-here.com/",
+                "Connection"        : "close",
+                "Cache-Control"     : "max-age=0"
+            }
+        },
+
+        "USE_HEADERS"   : false,
+        "PAIRS"         : [ "ltc_usd", "eur_usd" ],
+        "ALL_PAIRS"     : [ "btc_eur", "btc_rur", "btc_usd", "eur_rur", "eur_usd", "ltc_btc", "ltc_eur", "ltc_rur", "ltc_usd", "nmc_btc", "nmc_usd", "nvc_btc", "nvc_usd", "ppc_btc", "ppc_usd", "usd_rur" ],
+        "METHODS"       : [ "getInfo", "Trade", "ActiveOrders", "OrderInfo", "CancelOrder", "TradeHistory", "TransHistory", "WithdrawCoin", "CreateCoupon", "RedeemCoupon" ]
+    },
+    
+    "USER" : {
+        "DIR"           : "./data/user/",
+        "SCR"           : "scr/",
+        "NONCE_FILE"    : "nonce.file",
+        "ALLOW_CHAT"    : true,
+        "CHAT_LANGS"    : ["ru", "ch", "en" ],
+        "CHAT_LANG"     : "ru"
+
+    },
+
+    "SYS" : {
+
+        "GUI" : {
+            "W"     : 1000,
+            "H"     : 660,
+            "ML"    : 10,
+            "MT"    : 50,
+            "SHOW"  : true,
+            "SHOW_MSG_AS_WIN_TITLE" : true, 
+            "SPLASH" : {
+                "SHOW"  : false,
+                "IMG"   : "./data/imgs/splash.png"
+            }
+        },
+
+        "DEBUG" : true,
+        "ALLOW_LOGGING"     : true,
+        "UPD_DELAY"         : 15000,
+        "ALLOW_UPD"         : true,
+        "ALLOW_SOUND"       : true
+        
+    },
+
+    "DBS" : {
+        "DB" : {
+            "MAIN_DB"       : "BTC-e-TRADER.db",
+            "META_DB"       : "BTC-e-METADATA.db",
+            "OFFICE_DB"     : "BTC-e-OFFICE.db",
+            "BOOK_DB"       : "BTC-e-BOOKKEPPING.db",
+            "HISTORY_DB"    : "BTC-e-HISTORY.db",
+            "ORDERS_DB"     : "BTC-e-ORDERS.db"
+        },
+        "PATH"              : "./data/dbs/", 
+        "ISOLATION_LEVEL"   : [ "None", "DEFERRED", "IMMEDIATE", "EXCLUSIVE" ]
+    },
+    
+    "INFO" : {
+        
+        "NAME"      :  "BTCe-Trader",
+        "VERSION"   :  "v0.0.1a",
+        "LICENS"    :  "GPL",
+        "AUTHOR"    :  "ch3ll0v3k",
+        "LINK"      :  "http://github.com/ch3ll0v3k/BTCeTrader"
+
+    },
+    "CHECK_CODE" : ["VXSD3456", "DO-NOT-DELETE-THIS"]
+}

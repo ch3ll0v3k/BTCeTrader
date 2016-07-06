@@ -1,0 +1,22 @@
+# ===================================================================================
+# IF ORDER COMPLITE IMIDIATLY
+
+BUY
+{u'return': {u'remains': 0, u'received': 0.1, u'order_id': 0, u'funds': {u'ppc': 0, u'usd': 2.81088263, u'gbp': 0, u'xpm': 0, u'trc': 0, u'ltc': 15.81829299, u'ftc': 0, u'nvc': 0, u'nmc': 0, u'btc': 0, u'rur': 0, u'cnh': 0, u'eur': 0.00995544}}, u'success': 1}
+---------------------------------------------------------------
+SELL
+{u'return': {u'remains': 0, u'received': 0.1, u'order_id': 0, u'funds': {u'ppc': 0, u'usd': 3.12277161, u'gbp': 0, u'xpm': 0, u'trc': 0, u'ltc': 15.71829299, u'ftc': 0, u'nvc': 0, u'nmc': 0, u'btc': 0, u'rur': 0, u'cnh': 0, u'eur': 0.00995544}}, u'success': 1}
+---------------------------------------------------------------
+
+
+
+
+# ===================================================================================
+# IF ORDER STAY IN REMOTE DB FOR SOME TIME OPEN
+
+BUY
+{u'return': {u'remains': 0.1, u'received': 0, u'order_id': 969397736, u'funds': {u'ppc': 0, u'usd': 2.82277161, u'gbp': 0, u'xpm': 0, u'trc': 0, u'ltc': 15.71829299, u'ftc': 0, u'nvc': 0, u'nmc': 0, u'btc': 0, u'rur': 0, u'cnh': 0, u'eur': 0.00995544}}, u'success': 1}
+---------------------------------------------------------------
+SELL
+{u'return': {u'remains': 0.1, u'received': 0, u'order_id': 969397946, u'funds': {u'ppc': 0, u'usd': 2.82277161, u'gbp': 0, u'xpm': 0, u'trc': 0, u'ltc': 15.61829299, u'ftc': 0, u'nvc': 0, u'nmc': 0, u'btc': 0, u'rur': 0, u'cnh': 0, u'eur': 0.00995544}}, u'success': 1}
+---------------------------------------------------------------

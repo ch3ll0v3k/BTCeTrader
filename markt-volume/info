@@ -1,0 +1,8 @@
+"PUB"       : "https://btc-e.com/api/3/ticker/|<>PAIRS<>|?ignore_invalid=1",
+"ASK-BID"   : "https://btc-e.com/api/3/depth/|<>PAIRS<>|?limit=|<>LIMIT<>|",
+"TRADES"    : "https://btc-e.com/api/3/trades/|<>PAIRS<>|?limit=5",
+"FEE"       : "https://btc-e.com/api/2/|<>PAIRS<>|/fee",
+"INFO"      : "https://btc-e.com/api/3/info",
+
+"PAIRS"         : [ "ltc_usd", "btc_usd", "ltc_btc" ],
+"ALL_PAIRS"     : [ "btc_eur", "btc_rur", "btc_usd", "eur_rur", "eur_usd", "ltc_btc", "ltc_eur", "ltc_rur", "ltc_usd", "nmc_btc", "nmc_usd", "nvc_btc", "nvc_usd", "ppc_btc", "ppc_usd", "usd_rur" ],

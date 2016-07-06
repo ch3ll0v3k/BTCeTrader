@@ -1,0 +1,122 @@
+[color=green]"Open-Source Cross-Platform."[/color] BTC-e.com Торговый терминал!
+
+Все пожелания, вопросы, критика приветствуется ! 
+
+[list]
+[li]Version       : [[color=red]"BTC-e-Trader", "v 0.0.1a"[/color]];[/li]
+[li]Powered by : [[color=blue]"Python2.7"[/color], [color=blue]"PyQt4"[/color]];[/li]
+[li]Supported   : [[color=brown]"GNU-Linux"[/color],[color=brown] "Mac-OS"[/color], [color=brown]"Windows"[/color]];[/li]
+
+[li]PyQt4        : ["Full-Documentation", "http://pyqt.sourceforge.net/Docs/PyQt4/classes.html"];[/li]
+[li]Python       : ["Python-HomePage", "http://python.org"];[/li]
+
+[li]BTCeTrader  : ["Project Page:", "https://github.com/ch3ll0v3k/BTCeTrader"];[/li]
+
+
+[/list]
+
+[hr]
+
+[size=16pt][color=red]ВНИМАНИЕ !!![/color][/size] 
+Проект находится в активной разработке. 
+Как основной так и вторичный функционал может меняться.
+
+[color=red]Возможны вылеты, баги, зависания, прочии сбои в системе !!! 
+Будте осторожны !!![/color]
+[/color]
+
+[hr]
+
+[color=green]Функционал: [u]Реализованный[/u][/color]
+
+[list]
+[+][1] Режим мониторинг: без PUBLIC/PRIVATE ключа
+[+][2] Торговый терминал: ( add/cancel ордер )  ( ключ public/private) <обязательно>
+[+][3] Торговый помощник: Оповещает при достижении выставленного условия. (Текстовое и Звуковое сопровождение оповещения) 
+[+][4] Live-Currency-Graph-Plotter: Классические свечи и Линейный Граф
+[+][5] Универсальный калькулятор (на лету): При вводе любой цены/количества программа проверяет баланс и лучшую цену на данный момент.
+[+][6] Автоматическая проверка исполненных ордеров.  (Текстовое и Звуковое сопровождение оповещения)
+[/list]
+
+[color=orange]Функционал: Почти [u]Реализованный[/u]:[/color]
+
+[list]
+[+][1] Встроенная бухгалтерия: Всегда полезно !
+[/list]
+
+[color=red]Функционал: [u]Не реализованный[/u][/color]
+
+[list]
+[+][1] Graph-Plotter: Основаный на истории. Классические свечи и Линейный Граф
+[+][2] Торговля в полу/полном Авто-Режиме: Ордера выставляются только тогда когда достигается выставленное (пара/цена) условие.
+[+][3] Web-Interface: Такой же Функционал и дизайн 
+[+][4] Возможно больше в будущем ........
+[/list]
+
+
+[hr]
+Что-бы торговать:
+
+Отредактировать конфиг: "BTCeTrader/data/config/BTCeTrader.json" 
+
+[code]
+//  "/data/config/BTCeTrader.json"
+
+"KEY" : {
+    "PUB" : " PUBLIC-KEY ", // Публичный 
+    "SEC" : " PRIVATE-KEY " // Серкетный
+}
+[/code]
+
+[hr]
+Отключение звуковых сопровождений:
+
+Отредактировать конфиг "./data/config/BTCeTrader.json"
+
+[code]
+"ALLOW_SOUND"       : true // текстовое оповещание без звуков
+"ALLOW_SOUND"       : false // текстовое и звуковое оповещание
+[/code]
+
+
+[hr]
+Screen-Shots:
+
+Tab-Trader:
+[img]https://raw.githubusercontent.com/ch3ll0v3k/BTCeTrader/master/data/screenshots/TAB_Trader.png[/img]
+
+Tab-Office:
+[img]https://raw.githubusercontent.com/ch3ll0v3k/BTCeTrader/master/data/screenshots/TAB_Office.png[/img]
+
+Tab-Orders:
+[img]https://raw.githubusercontent.com/ch3ll0v3k/BTCeTrader/master/data/screenshots/TAB_Orders.png[/img]
+
+Tab-BookKeeping:
+[img]https://raw.githubusercontent.com/ch3ll0v3k/BTCeTrader/master/data/screenshots/TAB_BookKeeping.png[/img]
+
+Tab-NoteBook:
+[img]https://raw.githubusercontent.com/ch3ll0v3k/BTCeTrader/master/data/screenshots/TAB_NoteBook.png[/img]
+
+[hr]
+##################################################################
+#                                                                                                                                #
+#                                                            [size=12pt][color=green]INFO![/color][/size]                                                           #
+#                                           __________________________                                           #
+#                                                                                                                                #
+#                    [color=red]Данный проект не имеет ничего общего в командой BTC-e.com[/color]                     #
+#                                                                                                                                #
+#         [color=red]THE BTC-e.com IS NOT AFFILIATED WITH THIS PROJECT. THIS IS A COMPLETELY[/color]           #
+#         [color=red]INDEPENDENT IMPLEMENTATION BASED ON THE ONLINE BTC-E API DESCRIPTION[/color].           #
+#                                                                                                                                #
+#                                                                                                                                #
+##################################################################
+
+[size=8pt]
+Feel free to Support - Donate:
+    LTC     : "LUSz57MJkz6DwygfvLAYXUfC8WUZeYB52k" 
+    BTC     : "19eNNxZW2osDoE4rjYEWKh8oJHkZByte9T"
+    DOGE   : "DHmhxnW2Wxg58R8rXSFoAwsSffW3BDnbHc"
+    PEER    : "PWyaHp2gm1HduZkNLwm6ZMh8XLAwds455V"
+    DASH   : "Xc5jiQt7rgfsoN4rJVCCJuC7rxvWL7s3Mw"
+    BLACK  : "BHjQW5VdTA8CBmSSq5jzi2YYMJVaYys3hE"
+[/size]
